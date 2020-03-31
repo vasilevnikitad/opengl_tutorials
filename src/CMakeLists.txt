@@ -16,8 +16,6 @@ endif()
 
 include_directories(${OPENGL_INCLUDE_DIRS};)
 
-link_directories("/usr/lib64/")
-
 set_target_properties(
     opengl_window
         PROPERTIES
