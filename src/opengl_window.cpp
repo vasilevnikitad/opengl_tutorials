@@ -1,5 +1,4 @@
 #include <GL/glew.h>
-#include <unistd.h>
 #include <GLFW/glfw3.h>
 
 #include <iostream>
