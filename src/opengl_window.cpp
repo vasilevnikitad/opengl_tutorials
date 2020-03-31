@@ -4,7 +4,7 @@
 
 #include <iostream>
 
-int main(int , char *[])
+int main(int, char *[])
 {
     if (!glfwInit())
         return EXIT_FAILURE;
