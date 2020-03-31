@@ -37,6 +37,22 @@ int main(int, char *[])
     glfwGetFramebufferSize(window, &width, &height);
     glViewport(0, 0, width, height);
 
+    auto const key_callback = [](GLFWwindow *window, int key,
+                                 [[maybe_unused]]int scancode, int action, [[maybe_unused]]int mode) {
+        switch (key) {
+            case GLFW_KEY_ESCAPE:
+                if (action == GLFW_PRESS) {
+                    std::cout << "Escape pressed!" << std::endl;
+                    glfwSetWindowShouldClose(window, GL_TRUE);
+                }
+                break;
+            default:
+                break;
+        }
+    };
+
+    glfwSetKeyCallback(window, key_callback);
+
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
         glfwSwapBuffers(window);
