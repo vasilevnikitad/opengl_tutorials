@@ -6,3 +6,4 @@ project(
 )
 
 add_subdirectory(opengl_window)
+add_subdirectory(opengl_triangle)
