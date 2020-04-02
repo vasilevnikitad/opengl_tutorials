@@ -319,7 +319,7 @@ int main(int, char *[]) try {
     } catch (std::exception const &e) {
         std::cerr << "exception in main cycle: " << e.what() << std::endl;
         gl_deinit();
-        throw e;
+        throw std::runtime_error{"Unable to continue work"};
     }
 
     gl_deinit();
