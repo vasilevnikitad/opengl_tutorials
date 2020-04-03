@@ -2,11 +2,9 @@
 #include <GLFW/glfw3.h>
 
 #include <algorithm>
+#include <array>
 #include <fstream>
-#include <initializer_list>
 #include <iostream>
-#include <iterator>
-#include <memory>
 #include <type_traits>
 #include <utility>
 
@@ -142,14 +140,24 @@ private:
         glDeleteProgram(id);
     }
 
-    inline void compile_program(std::initializer_list<basic_shader> const& init_list) noexcept(false) {
+    template <typename T>
+    using is_shader = typename std::is_base_of<basic_shader, std::remove_reference_t<T>>;
 
-        for(auto const &shader : init_list) {
-            glAttachShader(program_id, shader.get_id());
+    template<typename T,
+             typename = std::enable_if_t<is_shader<T>::value>>
+    inline void attach_shader(T&& shader)
+    {
+        glAttachShader(program_id, shader.get_id());
 
-            if(auto const err{glGetError()}; err != GL_NO_ERROR)
-                throw std::runtime_error("Error attaching shader: GL returned code "s + std::to_string(err));
-        }
+        if(auto const err{glGetError()}; err != GL_NO_ERROR)
+            throw std::runtime_error("Error attaching shader: GL returned code "s + std::to_string(err));
+    }
+
+    template<typename ...Args,
+             typename = std::enable_if_t<std::conjunction_v<is_shader<Args&&>...>>>
+    inline void compile_program(Args&&... args) noexcept(false) {
+
+        (attach_shader(std::forward<Args>(args)), ...);
 
         glLinkProgram(program_id);
 
@@ -170,10 +178,13 @@ private:
 
 public:
 
-    shader_program(std::initializer_list<basic_shader> const init_list)
+
+    template<typename ...Args,
+             typename = std::enable_if_t<std::conjunction_v<is_shader<Args>...>>>
+    shader_program(Args&&...args)
             : program_id{create_program()}  {
         try {
-            compile_program(init_list);
+            compile_program(std::forward<Args>(args)...);
         } catch (std::exception const& e) {
             std::cerr << "Failed to create shader_program: "s + e.what() << std::endl;
             destroy_program(program_id);
@@ -181,6 +192,7 @@ public:
         }
     }
 
+    shader_program() = delete;
     shader_program(shader_program const& o) = delete;
     shader_program& operator=(shader_program const& o) = delete;
 
@@ -287,6 +299,7 @@ static void main_cycle(unsigned const width, unsigned height) {
     };
 
 
+
     GL_THROW_EXCEPTION_ON_ERROR(glGenVertexArrays, 2, vao);
     GL_THROW_EXCEPTION_ON_ERROR(glGenBuffers, 2, vbo);
 
@@ -298,18 +311,22 @@ static void main_cycle(unsigned const width, unsigned height) {
         GL_THROW_EXCEPTION_ON_ERROR(glEnableVertexAttribArray, 0);
     }
 
+
     GL_THROW_EXCEPTION_ON_ERROR(glBindBuffer, GL_ARRAY_BUFFER, 0);
     GL_THROW_EXCEPTION_ON_ERROR(glBindVertexArray, 0);
 
 
-    shader_program program{vertex_shader{get_text_from_file("shaders/triangle.vert")},
-                           fragment_shader{get_text_from_file("shaders/yellow.frag")}};
+    vertex_shader vertex{get_text_from_file("shaders/triangle.vert")};
+    shader_program program[2] {
+        shader_program{vertex, fragment_shader{get_text_from_file("shaders/yellow.frag")}},
+        shader_program{vertex, fragment_shader{get_text_from_file("shaders/red.frag")}},
+    };
 
     while (!glfwWindowShouldClose(window)) {
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
-        program.apply();
         for(std::size_t i{0}; i < std::size(vao); ++i) {
+            program[i].apply();
             GL_THROW_EXCEPTION_ON_ERROR(glBindVertexArray, vao[i]);
             GL_THROW_EXCEPTION_ON_ERROR(glDrawArrays, GL_TRIANGLES, 0, 3);
         }
