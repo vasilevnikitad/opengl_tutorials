@@ -30,7 +30,7 @@ set_target_properties(
 
 
 install(
-    TARGETS ${PROJECT_TARGETS}
+    TARGETS opengl_triangle
         RUNTIME DESTINATION bin
 )
 
