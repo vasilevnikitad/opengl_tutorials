@@ -303,7 +303,7 @@ static void main_cycle(unsigned const width, unsigned height) {
 
 
     shader_program program{vertex_shader{get_text_from_file("shaders/triangle.vert")},
-                           fragment_shader{get_text_from_file("shaders/simple_frag.frag")}};
+                           fragment_shader{get_text_from_file("shaders/yellow.frag")}};
 
     while (!glfwWindowShouldClose(window)) {
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
