@@ -61,7 +61,7 @@ public:
         } catch(std::exception const &e) {
             std::cerr << "Failed to compile shader: " << e.what() << std::endl;
             destroy_shader(shader_id);
-            throw e;
+            throw std::runtime_error{"Unable to construct shader"};
         }
     }
 
@@ -177,7 +177,7 @@ public:
         } catch (std::exception const& e) {
             std::cerr << "Failed to create shader_program: "s + e.what() << std::endl;
             destroy_program(program_id);
-            throw e;
+            throw std::runtime_error{"Unable to construct shader_program"};
         }
     }
 
