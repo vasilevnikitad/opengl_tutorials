@@ -6,6 +6,7 @@ project(
 )
 
 add_executable(opengl_triangle opengl_triangle.cpp)
+add_executable(opengl_2triangles opengl_2triangles.cpp)
 
 find_package(glfw3 REQUIRED)
 find_package(OpenGL REQUIRED)
@@ -17,7 +18,7 @@ endif()
 include_directories(${OPENGL_INCLUDE_DIRS};)
 
 set_target_properties(
-    opengl_triangle
+    opengl_triangle opengl_2triangles
         PROPERTIES
             CXX_STANDARD 17
             CXX_EXTENSIONS OFF
@@ -30,7 +31,7 @@ set_target_properties(
 
 
 install(
-    TARGETS opengl_triangle
+    TARGETS opengl_triangle opengl_2triangles
         RUNTIME DESTINATION bin
 )
 
