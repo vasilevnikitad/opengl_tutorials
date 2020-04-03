@@ -35,6 +35,6 @@ install(
 )
 
 install(
-    DIRECTORY shaders
-        RUNTIME DESTINATION bin
+    DIRECTORY shaders/
+        DESTINATION bin
 )
