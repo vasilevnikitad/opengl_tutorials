@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.12)
 
 project(
-    opengl_triangle
+    opengl_square
         LANGUAGES CXX
 )
 
-add_executable(opengl_triangle opengl_triangle.cpp)
+add_executable(${PROJECT_NAME} ${PROJECT_NAME}.cpp)
 
 find_package(glfw3 REQUIRED)
 find_package(OpenGL REQUIRED)
@@ -17,7 +17,7 @@ endif()
 include_directories(${OPENGL_INCLUDE_DIRS};)
 
 set_target_properties(
-    opengl_triangle
+    ${PROJECT_NAME}
         PROPERTIES
             CXX_STANDARD 17
             CXX_EXTENSIONS OFF
@@ -30,7 +30,7 @@ set_target_properties(
 
 
 install(
-    TARGETS opengl_triangle
+    TARGETS ${PROJECT_NAME}
         RUNTIME DESTINATION bin
 )
 
