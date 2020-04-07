@@ -8,19 +8,20 @@ project(
     opengl_lib
 )
 
+set(LIB_FILES gl_wrappers.hpp gl_helpers.hpp)
 
-add_library(lib INTERFACE)
+add_library(${PROJECT_NAME} INTERFACE)
 if(POLICY CMP0076)
-    target_sources(lib INTERFACE memmanagment.hpp)
+    target_sources(${PROJECT_NAME} INTERFACE ${LIB_FILES})
 else()
-    target_sources(lib
-                    INTERFACE "${CMAKE_SOURCE_DIR}/lib/memmanagment.hpp")
+    target_sources(${PROJECT_NAME}
+                    INTERFACE "${CMAKE_SOURCE_DIR}/lib/${LIB_FILES}")
 endif()
 
-target_include_directories(lib INTERFACE "${CMAKE_SOURCE_DIR}/lib")
+target_include_directories(${PROJECT_NAME} INTERFACE "${CMAKE_SOURCE_DIR}/lib")
 
 set_property(
-    TARGET lib
+    TARGET ${PROJECT_NAME}
         APPEND PROPERTY
             INTERFACE_INCLUDE_DIRECTORIES
                 "${CMAKE_BINARY_DIR}"
@@ -28,7 +29,7 @@ set_property(
 )
 
 install(
-    TARGETS lib
+    TARGETS ${PROJECT_NAME}
         LIBRARY DESTINATION lib
-            COMPONENT lib
+            COMPONENT ${PROJECT_NAME}
 )
