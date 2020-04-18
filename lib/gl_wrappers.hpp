@@ -243,6 +243,8 @@ do {                                                                            
             CHOOSE_UNIFORM_FUNC(args_cnt, f);
         else if constexpr (std::is_same_v<T, GLboolean>)
             CHOOSE_UNIFORM_FUNC(args_cnt, b);
+        else if constexpr (std::is_same_v<T, GLint>)
+            CHOOSE_UNIFORM_FUNC(args_cnt, i);
 
 
 #undef CHOOSE_UNIFORM_FUNC

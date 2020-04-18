@@ -7,5 +7,6 @@ project(
 
 add_subdirectory(opengl_window)
 add_subdirectory(opengl_triangle)
+add_subdirectory(opengl_texture)
 add_subdirectory(opengl_square)
 add_subdirectory(opengl_shaders)
