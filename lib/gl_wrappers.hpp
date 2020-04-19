@@ -249,6 +249,31 @@ do {                                                                            
 
             GL_THROW_EXCEPTION_ON_ERROR("Failed to set uniform");
         }
+
+        template<typename T,
+                std::size_t COLUMNS,
+                std::size_t ROWS = COLUMNS>
+        void set_matrix_uniform(GLuint const uniform_id, GLsizei count, T const* ptr, GLboolean transpose = GL_FALSE) {
+
+#define CHOOSE_MAT_UNIFORM_FUNC(cols, rows, last_letter, ...)     \
+        do {                                                      \
+            if constexpr (cols == rows) {                         \
+                if constexpr (cols == 2)                          \
+                    glUniformMatrix2##last_letter(__VA_ARGS__);   \
+                else if constexpr (cols == 3)                     \
+                    glUniformMatrix3##last_letter(__VA_ARGS__);   \
+                else if constexpr (cols == 4)                     \
+                    glUniformMatrix4##last_letter(__VA_ARGS__);   \
+            }                                                     \
+        } while(0)
+
+            if constexpr (std::is_same_v<T, GLfloat>) {
+                CHOOSE_MAT_UNIFORM_FUNC(COLUMNS, ROWS, fv, uniform_id, count, transpose, ptr);
+            }
+#undef CHOOSE_MAT_UNIFORM_FUNC
+
+            GL_THROW_EXCEPTION_ON_ERROR("Failed to set uniform");
+        }
     };
 
     class glfw_window {
