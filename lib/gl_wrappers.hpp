@@ -318,6 +318,10 @@ do {                                                                            
             glfwPollEvents();
         }
 
+        static double get_time() {
+            return glfwGetTime();
+        }
+
         static void set_context(window_shared_ptr_t const& window) {
             context_window = window;
             glfwMakeContextCurrent(context_window->ptr_window);
