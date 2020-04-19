@@ -245,8 +245,6 @@ do {                                                                            
             CHOOSE_UNIFORM_FUNC(args_cnt, b);
         else if constexpr (std::is_same_v<T, GLint>)
             CHOOSE_UNIFORM_FUNC(args_cnt, i);
-
-
 #undef CHOOSE_UNIFORM_FUNC
 
             GL_THROW_EXCEPTION_ON_ERROR("Failed to set uniform");
