@@ -17,14 +17,6 @@ do {                                                                            
         throw std::runtime_error(""s + msg + ": returned error code "s + std::to_string(err)); \
 } while(0);
 
-#if 0
-void going3D(auto&& window) {
-    glm::mat4 model{glm::rotate(glm::mat4{1.0f}, glm::radians(-55.0f), glm::vec3{1.f, 0.f, 0.f})};
-    glm::mat4 view{glm::translate(glm::mat4{1.f}, glm::vec4{0.f, 0.f, -3.f})};
-    glm::mat4 projection{glm::perspective(glm::radians(45.f), window.get_width() / window.get_height(), 0.1f, 100.0f)};
-}
-#endif
-
 template<typename T>
 void main_loop(T&& window) {
     auto load_texture = [](auto const texture_id, auto&& filename) {
