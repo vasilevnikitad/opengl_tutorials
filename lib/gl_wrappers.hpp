@@ -286,35 +286,20 @@ do {                                                                            
     public:
         glfw_window() = delete;
         glfw_window(glfw_window const&) = delete;
+        glfw_window(glfw_window&& o);
         glfw_window& operator=(glfw_window const&) = delete;
+        glfw_window& operator=(glfw_window&& o);
+        ~glfw_window();
 
+        void swap_buffers();
 
-        glfw_window(glfw_window&& o) : ptr_window{std::exchange(o.ptr_window, nullptr)}
-        { }
+        void set_should_be_closed(bool const val);
 
-        glfw_window& operator=(glfw_window&& o)
-        {
-            ptr_window = std::exchange(o.ptr_window, nullptr);
-            return *this;
-        }
+        unsigned get_width();
 
-        void swap_buffers() {
-            glfwSwapBuffers(ptr_window);
-        }
+        unsigned get_height();
 
-        void set_should_be_closed(bool const val)
-        {
-            glfwSetWindowShouldClose(ptr_window, val);
-        }
-
-        bool should_be_closed()
-        {
-            return glfwWindowShouldClose(ptr_window);
-        }
-
-        ~glfw_window(){
-            glfwDestroyWindow(ptr_window);
-        }
+        bool should_be_closed();
     };
 
     using window_shared_ptr_t = std::shared_ptr<glfw_window>;
@@ -323,45 +308,20 @@ do {                                                                            
     class glfw {
     public:
 
-        static inline std::string get_last_error() {
-            return {internal.get_error_msg()};
-        }
+        static inline std::string get_last_error();
 
         [[nodiscard]]
-        static window_shared_ptr_t create_window(std::string const &title, unsigned width = 800, unsigned height = 600) {
-            GLFWwindow* const ptr{glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr)};
+        static window_shared_ptr_t create_window(std::string const &title, unsigned width = 800, unsigned height = 600);
 
-            if (!ptr)
-                throw std::runtime_error("Failed to create window: " + get_last_error());
+        static void poll_events();
 
-            ;
+        static double get_time();
 
-            return window_shared_ptr_t {new glfw_window{ptr}};
-        }
+        static void set_context(window_shared_ptr_t const& window);
 
-        static void poll_events() {
-            glfwPollEvents();
-        }
+        static window_weak_ptr_t get_context();
 
-        static double get_time() {
-            return glfwGetTime();
-        }
-
-        static void set_context(window_shared_ptr_t const& window) {
-            context_window = window;
-            glfwMakeContextCurrent(context_window->ptr_window);
-
-            static glew_lib glew{};
-        }
-
-        static window_weak_ptr_t get_context() {
-            return context_window;
-        }
-
-        static void reset_context() {
-            context_window.reset();
-            glfwMakeContextCurrent(nullptr);
-        }
+        static void reset_context();
     private:
         struct glew_lib {
             glew_lib() {
@@ -408,6 +368,90 @@ do {                                                                            
         inline static glfw_internal internal{};
         inline static thread_local window_shared_ptr_t context_window{nullptr};
     };
+
+    glfw_window::glfw_window(glfw_window &&o) : ptr_window{std::exchange(o.ptr_window, nullptr)}
+    { }
+
+    glfw_window &glfw_window::operator=(glfw_window &&o) {
+        ptr_window = std::exchange(o.ptr_window, nullptr);
+        return *this;
+    }
+
+    void glfw_window::swap_buffers() {
+        glfwSwapBuffers(ptr_window);
+    }
+
+    void glfw_window::set_should_be_closed(const bool val) {
+        glfwSetWindowShouldClose(ptr_window, val);
+    }
+
+    glfw_window::~glfw_window() {
+        glfwDestroyWindow(ptr_window);
+    }
+
+    bool glfw_window::should_be_closed() {
+        return glfwWindowShouldClose(ptr_window);
+    }
+
+    unsigned glfw_window::get_width() {
+        int width;
+        glfwGetWindowSize(ptr_window, &width, nullptr);
+
+        if (!width)
+            throw std::runtime_error(glfw::get_last_error());
+
+        return static_cast<unsigned>(width);
+    }
+
+    unsigned glfw_window::get_height() {
+        int height;
+        glfwGetWindowSize(ptr_window, nullptr, &height);
+
+        if (!height)
+            throw std::runtime_error(glfw::get_last_error());
+
+        return static_cast<unsigned>(height);
+    }
+
+    window_shared_ptr_t glfw::create_window(const std::string &title, unsigned int width, unsigned int height) {
+        GLFWwindow* const ptr{glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr)};
+
+        if (!ptr)
+            throw std::runtime_error("Failed to create window: " + get_last_error());
+
+        ;
+
+        return window_shared_ptr_t {new glfw_window{ptr}};
+    }
+
+    std::string glfw::get_last_error() {
+        return {internal.get_error_msg()};
+    }
+
+
+    void glfw::poll_events() {
+        glfwPollEvents();
+    }
+
+    double glfw::get_time() {
+        return glfwGetTime();
+    }
+
+    void glfw::set_context(const window_shared_ptr_t &window) {
+        context_window = window;
+        glfwMakeContextCurrent(context_window->ptr_window);
+
+        static glew_lib glew{};
+    }
+
+    window_weak_ptr_t glfw::get_context() {
+        return context_window;
+    }
+
+    void glfw::reset_context() {
+        context_window.reset();
+        glfwMakeContextCurrent(nullptr);
+    }
 
 #undef GL_THROW_EXCEPTION_ON_ERROR
 }
