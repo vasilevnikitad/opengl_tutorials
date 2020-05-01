@@ -17,7 +17,7 @@ namespace gl_wrappers {
 do {                                                                                           \
     if(auto const err{glGetError()}; err != GL_NO_ERROR)                                       \
         throw std::runtime_error(""s + msg + ": returned error code "s + std::to_string(err)); \
-} while(0);
+} while(0)
 
     class basic_shader {
     private:
