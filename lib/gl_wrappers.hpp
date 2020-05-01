@@ -6,6 +6,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <type_traits>
 #include <utility>
@@ -276,10 +277,24 @@ do {                                                                            
         }
     };
 
+    class glfw_window;
+    class glfw_key_callback {
+    public:
+        virtual void operator()(glfw_window& window,  int key, int scan_code, int action, int mode) = 0;
+        virtual ~glfw_key_callback() = default;
+    };
+
     class glfw_window {
     private:
+        using key_callback_wrapper_fn = GLFWkeyfun;
         friend class glfw;
         std::unique_ptr<GLFWwindow, decltype(glfwDestroyWindow)*> ptr_window;
+
+        // Some kind of workaround to make callback wrapper
+        static inline std::map<GLFWwindow*, std::pair<glfw_window*, glfw_key_callback*>> key_callback_map;
+
+
+        static void key_callback_thunk(GLFWwindow* const ptr, int key, int scancode, int action, int mode);
 
         glfw_window(GLFWwindow *ptr) : ptr_window{ptr, glfwDestroyWindow}
         { }
@@ -295,6 +310,8 @@ do {                                                                            
         void swap_buffers();
 
         void set_should_be_closed(bool const val);
+
+        glfw_key_callback* set_key_callback(glfw_key_callback*);
 
         unsigned get_width();
 
@@ -388,6 +405,7 @@ do {                                                                            
     }
 
     glfw_window::~glfw_window() {
+        key_callback_map.erase(ptr_window.get());
     }
 
     bool glfw_window::should_be_closed() {
@@ -412,6 +430,33 @@ do {                                                                            
             throw std::runtime_error(glfw::get_last_error());
 
         return static_cast<unsigned>(height);
+    }
+
+    void glfw_window::key_callback_thunk(GLFWwindow* const ptr, int key, int scancode, int action, int mode) {
+        auto &[obj, callback]{key_callback_map[ptr]};
+
+        (callback)->operator()(*obj, key, scancode, action, mode);
+    }
+
+    glfw_key_callback* glfw_window::set_key_callback(glfw_key_callback* callback) {
+        if (auto const map_it{key_callback_map.find(ptr_window.get())};
+                map_it != std::end(key_callback_map)) {
+            if (callback)
+                std::swap(callback, std::get<1>(map_it->second));
+            else {
+                callback = std::get<1>(map_it->second);
+                key_callback_map.erase(map_it);
+            }
+            return callback;
+        }
+
+        if (!callback)
+            glfwSetKeyCallback(ptr_window.get(), nullptr);
+        else {
+            key_callback_map.insert({ptr_window.get(), std::make_pair(this, callback)});
+            glfwSetKeyCallback(ptr_window.get(), key_callback_thunk);
+        }
+        return nullptr;
     }
 
     window_shared_ptr_t glfw::create_window(const std::string &title, unsigned int width, unsigned int height) {
