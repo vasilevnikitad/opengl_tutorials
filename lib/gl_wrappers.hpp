@@ -283,6 +283,7 @@ do {                                                                            
 
         glfw_window(GLFWwindow *ptr) : ptr_window{ptr}
         { }
+
     public:
         glfw_window() = delete;
         glfw_window(glfw_window const&) = delete;
@@ -300,6 +301,7 @@ do {                                                                            
         unsigned get_height();
 
         bool should_be_closed();
+
     };
 
     using window_shared_ptr_t = std::shared_ptr<glfw_window>;
@@ -419,15 +421,12 @@ do {                                                                            
         if (!ptr)
             throw std::runtime_error("Failed to create window: " + get_last_error());
 
-        ;
-
         return window_shared_ptr_t {new glfw_window{ptr}};
     }
 
     std::string glfw::get_last_error() {
         return {internal.get_error_msg()};
     }
-
 
     void glfw::poll_events() {
         glfwPollEvents();
