@@ -279,9 +279,9 @@ do {                                                                            
     class glfw_window {
     private:
         friend class glfw;
-        GLFWwindow *ptr_window;
+        std::unique_ptr<GLFWwindow, decltype(glfwDestroyWindow)*> ptr_window;
 
-        glfw_window(GLFWwindow *ptr) : ptr_window{ptr}
+        glfw_window(GLFWwindow *ptr) : ptr_window{ptr, glfwDestroyWindow}
         { }
 
     public:
@@ -380,24 +380,23 @@ do {                                                                            
     }
 
     void glfw_window::swap_buffers() {
-        glfwSwapBuffers(ptr_window);
+        glfwSwapBuffers(ptr_window.get());
     }
 
     void glfw_window::set_should_be_closed(const bool val) {
-        glfwSetWindowShouldClose(ptr_window, val);
+        glfwSetWindowShouldClose(ptr_window.get(), val);
     }
 
     glfw_window::~glfw_window() {
-        glfwDestroyWindow(ptr_window);
     }
 
     bool glfw_window::should_be_closed() {
-        return glfwWindowShouldClose(ptr_window);
+        return glfwWindowShouldClose(ptr_window.get());
     }
 
     unsigned glfw_window::get_width() {
         int width;
-        glfwGetWindowSize(ptr_window, &width, nullptr);
+        glfwGetWindowSize(ptr_window.get(), &width, nullptr);
 
         if (!width)
             throw std::runtime_error(glfw::get_last_error());
@@ -407,7 +406,7 @@ do {                                                                            
 
     unsigned glfw_window::get_height() {
         int height;
-        glfwGetWindowSize(ptr_window, nullptr, &height);
+        glfwGetWindowSize(ptr_window.get(), nullptr, &height);
 
         if (!height)
             throw std::runtime_error(glfw::get_last_error());
@@ -438,7 +437,7 @@ do {                                                                            
 
     void glfw::set_context(const window_shared_ptr_t &window) {
         context_window = window;
-        glfwMakeContextCurrent(context_window->ptr_window);
+        glfwMakeContextCurrent(context_window->ptr_window.get());
 
         static glew_lib glew{};
     }
