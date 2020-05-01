@@ -296,8 +296,7 @@ do {                                                                            
 
         static void key_callback_thunk(GLFWwindow* const ptr, int key, int scancode, int action, int mode);
 
-        glfw_window(GLFWwindow *ptr) : ptr_window{ptr, glfwDestroyWindow}
-        { }
+        explicit glfw_window(unsigned width = 800, unsigned height = 600, std::string const& title = "untitled");
 
     public:
         glfw_window() = delete;
@@ -404,6 +403,14 @@ do {                                                                            
         glfwSetWindowShouldClose(ptr_window.get(), val);
     }
 
+    glfw_window::glfw_window(const unsigned int width, const unsigned int height, const std::string &title)
+            : ptr_window{glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr),
+                         glfwDestroyWindow}
+    {
+        if (!ptr_window)
+            throw std::runtime_error("Failed to create window: " + glfw::get_last_error());
+    }
+
     glfw_window::~glfw_window() {
         key_callback_map.erase(ptr_window.get());
     }
@@ -460,12 +467,7 @@ do {                                                                            
     }
 
     window_shared_ptr_t glfw::create_window(const std::string &title, unsigned int width, unsigned int height) {
-        GLFWwindow* const ptr{glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr)};
-
-        if (!ptr)
-            throw std::runtime_error("Failed to create window: " + get_last_error());
-
-        return window_shared_ptr_t {new glfw_window{ptr}};
+        return window_shared_ptr_t {new glfw_window{width, height, title}};
     }
 
     std::string glfw::get_last_error() {
