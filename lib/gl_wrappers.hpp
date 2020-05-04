@@ -284,6 +284,12 @@ do {                                                                            
         virtual ~glfw_key_callback() = default;
     };
 
+    class glfw_cursor_pos_callback {
+    public:
+        virtual void operator()(glfw_window& window, double x_pos, double y_pos) = 0;
+        virtual ~glfw_cursor_pos_callback() = default;
+    };
+
     class glfw_window {
     private:
         using key_callback_wrapper_fn = GLFWkeyfun;
@@ -292,11 +298,37 @@ do {                                                                            
 
         // Some kind of workaround to make callback wrapper
         static inline std::map<GLFWwindow*, std::pair<glfw_window*, glfw_key_callback*>> key_callback_map;
-
+        static inline std::map<GLFWwindow*, std::pair<glfw_window*, glfw_cursor_pos_callback*>> cursor_pos_map;
 
         static void key_callback_thunk(GLFWwindow* const ptr, int key, int scancode, int action, int mode);
 
+        static void cursor_pos_thunk(GLFWwindow* const ptr, double x_pos, double y_pos);
+
         explicit glfw_window(unsigned width = 800, unsigned height = 600, std::string const& title = "untitled");
+
+        template<typename MAP_T, typename INTERNAL_SET_CALLBACK, typename CALLBACK, typename CALLBACK_THUNK>
+        inline CALLBACK* set_internal_callback(MAP_T &map, INTERNAL_SET_CALLBACK& internal_setter,
+                                               CALLBACK_THUNK* callback_thunk, CALLBACK* callback) {
+            if (auto const map_it{map.find(ptr_window.get())};
+                    map_it != std::end(map)) {
+                if (callback)
+                    std::swap(callback, std::get<1>(map_it->second));
+                else {
+                    callback = std::get<1>(map_it->second);
+                    map.erase(map_it);
+                }
+                return callback;
+            }
+
+            if (!callback)
+                internal_setter(ptr_window.get(), nullptr);
+            else {
+                map.insert({ptr_window.get(), std::make_pair(this, callback)});
+                internal_setter(ptr_window.get(), callback_thunk);
+            }
+            return nullptr;
+        }
+
 
     public:
         glfw_window() = delete;
@@ -311,6 +343,8 @@ do {                                                                            
         void set_should_be_closed(bool const val);
 
         glfw_key_callback* set_key_callback(glfw_key_callback*);
+
+        glfw_cursor_pos_callback* set_cursor_pos_callback(glfw_cursor_pos_callback *);
 
         unsigned get_width();
 
@@ -413,6 +447,7 @@ do {                                                                            
 
     glfw_window::~glfw_window() {
         key_callback_map.erase(ptr_window.get());
+        cursor_pos_map.erase(ptr_window.get());
     }
 
     bool glfw_window::should_be_closed() {
@@ -445,25 +480,19 @@ do {                                                                            
         (callback)->operator()(*obj, key, scancode, action, mode);
     }
 
-    glfw_key_callback* glfw_window::set_key_callback(glfw_key_callback* callback) {
-        if (auto const map_it{key_callback_map.find(ptr_window.get())};
-                map_it != std::end(key_callback_map)) {
-            if (callback)
-                std::swap(callback, std::get<1>(map_it->second));
-            else {
-                callback = std::get<1>(map_it->second);
-                key_callback_map.erase(map_it);
-            }
-            return callback;
-        }
+    void glfw_window::cursor_pos_thunk(GLFWwindow *const ptr, double x_pos, double y_pos) {
+        auto &[obj, callback]{cursor_pos_map[ptr]};
 
-        if (!callback)
-            glfwSetKeyCallback(ptr_window.get(), nullptr);
-        else {
-            key_callback_map.insert({ptr_window.get(), std::make_pair(this, callback)});
-            glfwSetKeyCallback(ptr_window.get(), key_callback_thunk);
-        }
-        return nullptr;
+        callback->operator()(*obj, x_pos, y_pos);
+    }
+
+
+    glfw_key_callback* glfw_window::set_key_callback(glfw_key_callback* callback) {
+        return set_internal_callback(key_callback_map, glfwSetKeyCallback, key_callback_thunk, callback);
+    }
+
+    glfw_cursor_pos_callback* glfw_window::set_cursor_pos_callback(glfw_cursor_pos_callback* callback) {
+        return set_internal_callback(cursor_pos_map, glfwSetCursorPosCallback, cursor_pos_thunk, callback);
     }
 
     window_shared_ptr_t glfw::create_window(const std::string &title, unsigned int width, unsigned int height) {
