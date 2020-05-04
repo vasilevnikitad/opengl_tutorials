@@ -347,6 +347,8 @@ do {                                                                            
         glfw_window& operator=(glfw_window&& o);
         ~glfw_window();
 
+        void disable_cursor();
+
         void swap_buffers();
 
         void set_should_be_closed(bool const val);
@@ -514,6 +516,11 @@ do {                                                                            
 
     glfw_scroll_callback* glfw_window::set_scroll_callback(glfw_scroll_callback* callback) {
         return set_internal_callback(scroll_map, glfwSetScrollCallback, scroll_thunk, callback);
+    }
+
+    void glfw_window::disable_cursor() {
+        std::cerr << __PRETTY_FUNCTION__  << " will be deprecated" << std::endl;
+        glfwSetInputMode(ptr_window.get(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     }
 
     window_shared_ptr_t glfw::create_window(const std::string &title, unsigned int width, unsigned int height) {
