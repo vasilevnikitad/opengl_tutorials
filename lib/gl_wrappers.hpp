@@ -290,6 +290,12 @@ do {                                                                            
         virtual ~glfw_cursor_pos_callback() = default;
     };
 
+    class glfw_scroll_callback {
+    public:
+        virtual void operator()(glfw_window& window, double x_off, double y_off) = 0;
+        virtual ~glfw_scroll_callback() = default;
+    };
+
     class glfw_window {
     private:
         using key_callback_wrapper_fn = GLFWkeyfun;
@@ -299,10 +305,13 @@ do {                                                                            
         // Some kind of workaround to make callback wrapper
         static inline std::map<GLFWwindow*, std::pair<glfw_window*, glfw_key_callback*>> key_callback_map;
         static inline std::map<GLFWwindow*, std::pair<glfw_window*, glfw_cursor_pos_callback*>> cursor_pos_map;
+        static inline std::map<GLFWwindow*, std::pair<glfw_window*, glfw_scroll_callback*>> scroll_map;
 
         static void key_callback_thunk(GLFWwindow* const ptr, int key, int scancode, int action, int mode);
 
         static void cursor_pos_thunk(GLFWwindow* const ptr, double x_pos, double y_pos);
+
+        static void scroll_thunk(GLFWwindow *const ptr, double x_off, double y_off);
 
         explicit glfw_window(unsigned width = 800, unsigned height = 600, std::string const& title = "untitled");
 
@@ -345,6 +354,8 @@ do {                                                                            
         glfw_key_callback* set_key_callback(glfw_key_callback*);
 
         glfw_cursor_pos_callback* set_cursor_pos_callback(glfw_cursor_pos_callback *);
+
+        glfw_scroll_callback* set_scroll_callback(glfw_scroll_callback*);
 
         unsigned get_width();
 
@@ -486,6 +497,12 @@ do {                                                                            
         callback->operator()(*obj, x_pos, y_pos);
     }
 
+    void glfw_window::scroll_thunk(GLFWwindow *const ptr, double x_off, double y_off) {
+        auto &[obj, callback]{scroll_map[ptr]};
+
+        callback->operator()(*obj, x_off, y_off);
+    }
+
 
     glfw_key_callback* glfw_window::set_key_callback(glfw_key_callback* callback) {
         return set_internal_callback(key_callback_map, glfwSetKeyCallback, key_callback_thunk, callback);
@@ -493,6 +510,10 @@ do {                                                                            
 
     glfw_cursor_pos_callback* glfw_window::set_cursor_pos_callback(glfw_cursor_pos_callback* callback) {
         return set_internal_callback(cursor_pos_map, glfwSetCursorPosCallback, cursor_pos_thunk, callback);
+    }
+
+    glfw_scroll_callback* glfw_window::set_scroll_callback(glfw_scroll_callback* callback) {
+        return set_internal_callback(scroll_map, glfwSetScrollCallback, scroll_thunk, callback);
     }
 
     window_shared_ptr_t glfw::create_window(const std::string &title, unsigned int width, unsigned int height) {
