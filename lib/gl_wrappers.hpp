@@ -6,6 +6,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <type_traits>
 #include <utility>
@@ -17,7 +18,7 @@ namespace gl_wrappers {
 do {                                                                                           \
     if(auto const err{glGetError()}; err != GL_NO_ERROR)                                       \
         throw std::runtime_error(""s + msg + ": returned error code "s + std::to_string(err)); \
-} while(0);
+} while(0)
 
     class basic_shader {
     private:
@@ -276,45 +277,94 @@ do {                                                                            
         }
     };
 
+    class glfw_window;
+    class glfw_key_callback {
+    public:
+        virtual void operator()(glfw_window& window,  int key, int scan_code, int action, int mode) = 0;
+        virtual ~glfw_key_callback() = default;
+    };
+
+    class glfw_cursor_pos_callback {
+    public:
+        virtual void operator()(glfw_window& window, double x_pos, double y_pos) = 0;
+        virtual ~glfw_cursor_pos_callback() = default;
+    };
+
+    class glfw_scroll_callback {
+    public:
+        virtual void operator()(glfw_window& window, double x_off, double y_off) = 0;
+        virtual ~glfw_scroll_callback() = default;
+    };
+
     class glfw_window {
     private:
+        using key_callback_wrapper_fn = GLFWkeyfun;
         friend class glfw;
-        GLFWwindow *ptr_window;
+        std::unique_ptr<GLFWwindow, decltype(glfwDestroyWindow)*> ptr_window;
 
-        glfw_window(GLFWwindow *ptr) : ptr_window{ptr}
-        { }
+        // Some kind of workaround to make callback wrapper
+        static inline std::map<GLFWwindow*, std::pair<glfw_window*, glfw_key_callback*>> key_callback_map;
+        static inline std::map<GLFWwindow*, std::pair<glfw_window*, glfw_cursor_pos_callback*>> cursor_pos_map;
+        static inline std::map<GLFWwindow*, std::pair<glfw_window*, glfw_scroll_callback*>> scroll_map;
+
+        static void key_callback_thunk(GLFWwindow* const ptr, int key, int scancode, int action, int mode);
+
+        static void cursor_pos_thunk(GLFWwindow* const ptr, double x_pos, double y_pos);
+
+        static void scroll_thunk(GLFWwindow *const ptr, double x_off, double y_off);
+
+        explicit glfw_window(unsigned width = 800, unsigned height = 600, std::string const& title = "untitled");
+
+        template<typename MAP_T, typename INTERNAL_SET_CALLBACK, typename CALLBACK, typename CALLBACK_THUNK>
+        inline CALLBACK* set_internal_callback(MAP_T &map, INTERNAL_SET_CALLBACK& internal_setter,
+                                               CALLBACK_THUNK* callback_thunk, CALLBACK* callback) {
+            if (auto const map_it{map.find(ptr_window.get())};
+                    map_it != std::end(map)) {
+                if (callback)
+                    std::swap(callback, std::get<1>(map_it->second));
+                else {
+                    callback = std::get<1>(map_it->second);
+                    map.erase(map_it);
+                }
+                return callback;
+            }
+
+            if (!callback)
+                internal_setter(ptr_window.get(), nullptr);
+            else {
+                map.insert({ptr_window.get(), std::make_pair(this, callback)});
+                internal_setter(ptr_window.get(), callback_thunk);
+            }
+            return nullptr;
+        }
+
+
     public:
         glfw_window() = delete;
         glfw_window(glfw_window const&) = delete;
+        glfw_window(glfw_window&& o);
         glfw_window& operator=(glfw_window const&) = delete;
+        glfw_window& operator=(glfw_window&& o);
+        ~glfw_window();
 
+        void disable_cursor();
 
-        glfw_window(glfw_window&& o) : ptr_window{std::exchange(o.ptr_window, nullptr)}
-        { }
+        void swap_buffers();
 
-        glfw_window& operator=(glfw_window&& o)
-        {
-            ptr_window = std::exchange(o.ptr_window, nullptr);
-            return *this;
-        }
+        void set_should_be_closed(bool const val);
 
-        void swap_buffers() {
-            glfwSwapBuffers(ptr_window);
-        }
+        glfw_key_callback* set_key_callback(glfw_key_callback*);
 
-        void set_should_be_closed(bool const val)
-        {
-            glfwSetWindowShouldClose(ptr_window, val);
-        }
+        glfw_cursor_pos_callback* set_cursor_pos_callback(glfw_cursor_pos_callback *);
 
-        bool should_be_closed()
-        {
-            return glfwWindowShouldClose(ptr_window);
-        }
+        glfw_scroll_callback* set_scroll_callback(glfw_scroll_callback*);
 
-        ~glfw_window(){
-            glfwDestroyWindow(ptr_window);
-        }
+        unsigned get_width();
+
+        unsigned get_height();
+
+        bool should_be_closed();
+
     };
 
     using window_shared_ptr_t = std::shared_ptr<glfw_window>;
@@ -323,45 +373,20 @@ do {                                                                            
     class glfw {
     public:
 
-        static inline std::string get_last_error() {
-            return {internal.get_error_msg()};
-        }
+        static inline std::string get_last_error();
 
         [[nodiscard]]
-        static window_shared_ptr_t create_window(std::string const &title, unsigned width = 800, unsigned height = 600) {
-            GLFWwindow* const ptr{glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr)};
+        static window_shared_ptr_t create_window(std::string const &title, unsigned width = 800, unsigned height = 600);
 
-            if (!ptr)
-                throw std::runtime_error("Failed to create window: " + get_last_error());
+        static void poll_events();
 
-            ;
+        static double get_time();
 
-            return window_shared_ptr_t {new glfw_window{ptr}};
-        }
+        static void set_context(window_shared_ptr_t const& window);
 
-        static void poll_events() {
-            glfwPollEvents();
-        }
+        static window_weak_ptr_t get_context();
 
-        static double get_time() {
-            return glfwGetTime();
-        }
-
-        static void set_context(window_shared_ptr_t const& window) {
-            context_window = window;
-            glfwMakeContextCurrent(context_window->ptr_window);
-
-            static glew_lib glew{};
-        }
-
-        static window_weak_ptr_t get_context() {
-            return context_window;
-        }
-
-        static void reset_context() {
-            context_window.reset();
-            glfwMakeContextCurrent(nullptr);
-        }
+        static void reset_context();
     private:
         struct glew_lib {
             glew_lib() {
@@ -408,6 +433,127 @@ do {                                                                            
         inline static glfw_internal internal{};
         inline static thread_local window_shared_ptr_t context_window{nullptr};
     };
+
+    glfw_window::glfw_window(glfw_window &&o) : ptr_window{std::exchange(o.ptr_window, nullptr)}
+    { }
+
+    glfw_window &glfw_window::operator=(glfw_window &&o) {
+        ptr_window = std::exchange(o.ptr_window, nullptr);
+        return *this;
+    }
+
+    void glfw_window::swap_buffers() {
+        glfwSwapBuffers(ptr_window.get());
+    }
+
+    void glfw_window::set_should_be_closed(const bool val) {
+        glfwSetWindowShouldClose(ptr_window.get(), val);
+    }
+
+    glfw_window::glfw_window(const unsigned int width, const unsigned int height, const std::string &title)
+            : ptr_window{glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr),
+                         glfwDestroyWindow}
+    {
+        if (!ptr_window)
+            throw std::runtime_error("Failed to create window: " + glfw::get_last_error());
+    }
+
+    glfw_window::~glfw_window() {
+        key_callback_map.erase(ptr_window.get());
+        cursor_pos_map.erase(ptr_window.get());
+    }
+
+    bool glfw_window::should_be_closed() {
+        return glfwWindowShouldClose(ptr_window.get());
+    }
+
+    unsigned glfw_window::get_width() {
+        int width;
+        glfwGetWindowSize(ptr_window.get(), &width, nullptr);
+
+        if (!width)
+            throw std::runtime_error(glfw::get_last_error());
+
+        return static_cast<unsigned>(width);
+    }
+
+    unsigned glfw_window::get_height() {
+        int height;
+        glfwGetWindowSize(ptr_window.get(), nullptr, &height);
+
+        if (!height)
+            throw std::runtime_error(glfw::get_last_error());
+
+        return static_cast<unsigned>(height);
+    }
+
+    void glfw_window::key_callback_thunk(GLFWwindow* const ptr, int key, int scancode, int action, int mode) {
+        auto &[obj, callback]{key_callback_map[ptr]};
+
+        (callback)->operator()(*obj, key, scancode, action, mode);
+    }
+
+    void glfw_window::cursor_pos_thunk(GLFWwindow *const ptr, double x_pos, double y_pos) {
+        auto &[obj, callback]{cursor_pos_map[ptr]};
+
+        callback->operator()(*obj, x_pos, y_pos);
+    }
+
+    void glfw_window::scroll_thunk(GLFWwindow *const ptr, double x_off, double y_off) {
+        auto &[obj, callback]{scroll_map[ptr]};
+
+        callback->operator()(*obj, x_off, y_off);
+    }
+
+
+    glfw_key_callback* glfw_window::set_key_callback(glfw_key_callback* callback) {
+        return set_internal_callback(key_callback_map, glfwSetKeyCallback, key_callback_thunk, callback);
+    }
+
+    glfw_cursor_pos_callback* glfw_window::set_cursor_pos_callback(glfw_cursor_pos_callback* callback) {
+        return set_internal_callback(cursor_pos_map, glfwSetCursorPosCallback, cursor_pos_thunk, callback);
+    }
+
+    glfw_scroll_callback* glfw_window::set_scroll_callback(glfw_scroll_callback* callback) {
+        return set_internal_callback(scroll_map, glfwSetScrollCallback, scroll_thunk, callback);
+    }
+
+    void glfw_window::disable_cursor() {
+        std::cerr << __PRETTY_FUNCTION__  << " will be deprecated" << std::endl;
+        glfwSetInputMode(ptr_window.get(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    }
+
+    window_shared_ptr_t glfw::create_window(const std::string &title, unsigned int width, unsigned int height) {
+        return window_shared_ptr_t {new glfw_window{width, height, title}};
+    }
+
+    std::string glfw::get_last_error() {
+        return {internal.get_error_msg()};
+    }
+
+    void glfw::poll_events() {
+        glfwPollEvents();
+    }
+
+    double glfw::get_time() {
+        return glfwGetTime();
+    }
+
+    void glfw::set_context(const window_shared_ptr_t &window) {
+        context_window = window;
+        glfwMakeContextCurrent(context_window->ptr_window.get());
+
+        static glew_lib glew{};
+    }
+
+    window_weak_ptr_t glfw::get_context() {
+        return context_window;
+    }
+
+    void glfw::reset_context() {
+        context_window.reset();
+        glfwMakeContextCurrent(nullptr);
+    }
 
 #undef GL_THROW_EXCEPTION_ON_ERROR
 }
